@@ -46,7 +46,8 @@ from __future__ import (
     print_function,
     unicode_literals,
     )
-
+import sys
+sys.path.append('/home/sapan2211/maas-image-builder/R33/src/')
 import mib.core
 
 if __name__ == '__main__':
