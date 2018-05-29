@@ -32,4 +32,12 @@ curtin环境中 运行  grub2-mkconfig  -o /boot/grub2/grub.cfg
 
 
 
-新的代码提交，修改了maas dhcp 分配的ip无法在。
+新的代码提交，修改了maas dhcp 分配的ip无法在目标机器上通过cloud-init 进行创建，
+cloud-init 在local -init 阶段会创建network，目前只做的镜像，没有提供本地配置，导致目标机器进行dhcp模式，ip会和maas dhcp提供的出现差异。
+bug：修复：
+
+NETWORK_CONFIG = """\
+network:
+    config: disabled
+"""
+将maas分配ip，写入目标机器的网络配置文件中，通过curtin hook实现，具体见代码。
