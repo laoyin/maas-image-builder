@@ -74,6 +74,21 @@ def write_datasource(target, data):
         stream.write(data + '\n')
 
 
+NETWORK_CONFIG = """\
+network:
+    config: disabled
+"""
+
+
+def write_cloud_init_network_disable(target, data):
+    """Writes the cloudinit config into
+    /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg."""
+    path = os.path.join(
+        target, 'etc', 'cloud', 'cloud.cfg.d', '99-disable-network-config.cfg')
+    with open(path, 'w') as stream:
+        stream.write(data + '\n')
+
+
 def main():
     state = util.load_command_environment()
     target = state['target']
@@ -94,6 +109,7 @@ def main():
     params = extract_maas_parameters(debconf)
     datasource = get_datasource(**params)
     write_datasource(target, datasource)
+    write_cloud_init_network_disable(target, NETWORK_CONFIG)
 
 
 if __name__ == "__main__":

@@ -83,8 +83,14 @@ def get_uefi_partition():
 
 def read_file(path):
     """Returns content of a file."""
-    with open(path, 'rb') as stream:
-        return stream.read().encode('utf-8')
+    with open(path, 'r', encoding='utf-8') as stream:
+        return stream.read()
+
+def load_config(path):
+    import json
+    """Loads the curtin config."""
+    with open(path, 'r') as stream:
+        return json.load(stream)
 
 
 def write_fstab(target, curtin_fstab):
@@ -135,10 +141,14 @@ def get_extra_kernel_parameters():
 def update_grub_default(target, extra=[]):
     """Updates /etc/default/grub with the correct options."""
     grub_default_path = os.path.join(target, 'etc', 'default', 'grub')
+    extra.append("fsck.mode=skip")
+    extra.append("rootfstype=ext4")
     kernel_cmdline = ' '.join(extra)
+    # fsck.mode=skip, change the default
     with open(grub_default_path, 'a') as stream:
         stream.write(GRUB_PREPEND)
         stream.write('GRUB_CMDLINE_LINUX=\"%s\"\n' % kernel_cmdline)
+        # stream.write('GRUB_CMDLINE_LINUX_DEFAULT=\"%s\"\n' % kernel_cmdline)
 
 
 def grub2_install(target, root):
@@ -249,7 +259,7 @@ def get_ipv4_config(iface, data):
         if 'hostname' in data:
             config.append('DHCP_HOSTNAME="%s"' % data['hostname'])
     elif method == 'static':
-        config.append('BOOTPROTO="none"')
+        config.append('BOOTPROTO="static"')
         config.append('IPADDR="%s"' % data['address'])
         config.append('NETMASK="%s"' % data['netmask'])
         if 'broadcast' in data:
@@ -277,17 +287,45 @@ def write_interface_config(target, iface, data):
         stream.write(config + '\n')
 
 
-def write_network_config(target, mac):
+def get_address_gatway_message(network_config, iname):
+    address_flag, gateway_flag = False, False
+    address, gateway = None, None
+    for config_line in network_config:
+        if config_line.get('name', '') == iname:
+            subnets = config_line['subnets']
+            for sub  in subnets:
+                gateway = sub['gateway']
+                address = sub['address'].replace('/24', '')
+                address_flag, gateway_flag = True, True
+
+    if not min(address_flag, gateway_flag):
+        raise  Exception("some bad thing happen, address:%s, gateway:%s"%(address, gateway))
+    return address, gateway
+
+
+def write_network_config(target, mac, network_config=None):
     """Write network configuration for the given MAC address."""
-    inames = get_interface_names()
+    # 为了满足 目前需求
+    inames = get_interface_names()   # 获取网卡设备名称{"MAC address":"etho"}
     iname = inames[mac.lower()]
+    if network_config is None:
+        raise Exception("can not find network config, some bad thing happened")
+    address, gateway = get_address_gatway_message(network_config, iname)
     write_interface_config(
         target, iname, {
             'family': 'inet',
             'hwaddress': mac.upper(),
             'auto': True,
-            'method': 'dhcp'
+            'method': 'static',
+            'address': address,
+            'gateway': gateway,
+            'netmask': '255.255.255.0'
         })
+
+
+def get_nertwork_config(curtin_config):
+    return  curtin_config['network']['config']
+
 
 
 def main():
@@ -324,8 +362,12 @@ def main():
         for dev in devices:
             grub2_install(target, dev)
 
+    curtin_config = load_config(state['config'])
+    print(curtin_config)
+    network_config = get_nertwork_config(curtin_config)
+    print(network_config)
     set_autorelabel(target)
-    write_network_config(target, bootmac)
+    write_network_config(target, bootmac, network_config)
 
 
 if __name__ == "__main__":
