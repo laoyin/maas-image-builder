@@ -334,6 +334,8 @@ def get_nertwork_config(curtin_config):
 def main():
     state = util.load_command_environment()
     target = state['target']
+    print(target)
+    print("target message")
     if target is None:
         print("Target was not provided in the environment.")
         sys.exit(1)
