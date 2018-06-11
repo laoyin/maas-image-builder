@@ -335,6 +335,10 @@ def main():
     state = util.load_command_environment()
     target = state['target']
     print(target)
+    try:
+        print(os.listdir(os.path.join(target, "boot", "efi")))
+    except Exception as e:
+        print(e)
     print("target message")
     if target is None:
         print("Target was not provided in the environment.")
