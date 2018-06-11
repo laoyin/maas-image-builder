@@ -176,7 +176,8 @@ def install_efi(target, uefi_path):
         if os.path.exists(os.path.join(tmp_efi, 'EFI')):
             shutil.rmtree(os.path.join(tmp_efi, 'EFI'))
         # bug  does not have a dir  EFI
-        os.mkdir(os.path.join(tmp_efi, 'EFI'))
+        #No such file or directory: '/tmp/tmpab9g_us0/target/boot/efi/EFI'
+        #os.mkdir(os.path.join(tmp_efi, 'EFI'))
         shutil.copytree(
             os.path.join(efi_path, 'EFI'),
             os.path.join(tmp_efi, 'EFI'))
@@ -359,6 +360,8 @@ def main():
         if uefi_part is None:
             print('Unable to determine UEFI parition.')
             sys.exit(1)
+        print("分区信息")
+        print(uefi_part)
         install_efi(target, uefi_part['device_path'])
     else:
         for dev in devices:
