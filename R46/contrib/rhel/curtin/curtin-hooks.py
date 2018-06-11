@@ -175,6 +175,8 @@ def install_efi(target, uefi_path):
         efi_path = os.path.join(target, 'boot', 'efi')
         if os.path.exists(os.path.join(tmp_efi, 'EFI')):
             shutil.rmtree(os.path.join(tmp_efi, 'EFI'))
+        # bug  does not have a dir  EFI
+        os.mkdir(os.path.join(tmp_efi, 'EFI'))
         shutil.copytree(
             os.path.join(efi_path, 'EFI'),
             os.path.join(tmp_efi, 'EFI'))
