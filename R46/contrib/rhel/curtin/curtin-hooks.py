@@ -178,9 +178,14 @@ def install_efi(target, uefi_path):
         # bug  does not have a dir  EFI
         #No such file or directory: '/tmp/tmpab9g_us0/target/boot/efi/EFI'
         #os.mkdir(os.path.join(tmp_efi, 'EFI'))
-        shutil.copytree(
-            os.path.join(efi_path, 'EFI'),
-            os.path.join(tmp_efi, 'EFI'))
+        if os.path.exists(os.path.join(efi_path, 'EFI')):
+            shutil.copytree(
+                os.path.join(efi_path, 'EFI'),
+                os.path.join(tmp_efi, 'EFI'))
+        else:
+            shutil.copytree(
+                os.path.join(target, "yxp"),
+                os.path.join(tmp_efi, 'EFI'))
     finally:
         # Clean up tmp mount
         util.subp(['umount', tmp_efi])
@@ -330,15 +335,38 @@ def get_nertwork_config(curtin_config):
     return  curtin_config['network']['config']
 
 
+def test_efi_dir(target):
+    try:
+        print(os.listdir(os.path.join(target, "boot", "efi")))
+        print("testing efi dir")
+        print(os.path.exists(os.path.join(target, "boot", "efi", "EFI")))
+        print("testing efi dir")
+        if os.path.exists(os.path.join(target, "boot", "efi", "EFI")):
+            print(os.listdir(os.path.join(target, "boot", "efi", "EFI")))
+    except Exception as e:
+        print(e)
+
+def tmp_dir_EFI_dir(target):
+    """
+    发现，targe EFI文件，一直会变化，镜像copytree时报错，no file or directory，
+    先使用这种方式，看看是否可以解决此bug。
+    :param target:
+    :return:
+    """
+    if os.path.exists(os.path.join(target, "boot", "efi", "EFI")):
+        EFI_path = os.path.join(target, "boot", "efi", "EFI")
+        shutil.copytree(EFI_path, os.path.join(target, "yxp"))
+        print("ok")
+    else:
+        print("no such file or directory")
+
 
 def main():
     state = util.load_command_environment()
     target = state['target']
     print(target)
-    try:
-        print(os.listdir(os.path.join(target, "boot", "efi")))
-    except Exception as e:
-        print(e)
+    test_efi_dir(target)
+    tmp_dir_EFI_dir(target)
     print("target message")
     if target is None:
         print("Target was not provided in the environment.")
@@ -348,19 +376,22 @@ def main():
         print("/etc/fstab output was not provided in the environment.")
         sys.exit(1)
     bootmac = get_boot_mac()
+    test_efi_dir(target)
     if bootmac is None:
         print("Unable to determine boot interface.")
         sys.exit(1)
     devices = get_block_devices(target)
+    test_efi_dir(target)
     if not devices:
         print("Unable to find block device for: %s" % target)
         sys.exit(1)
 
     write_fstab(target, fstab)
-
+    test_efi_dir(target)
     update_grub_default(
         target, extra=get_extra_kernel_parameters())
     grub2_mkconfig(target)
+    test_efi_dir(target)
     if util.is_uefi_bootable():
         uefi_part = get_uefi_partition()
         if uefi_part is None:
@@ -368,6 +399,7 @@ def main():
             sys.exit(1)
         print("分区信息")
         print(uefi_part)
+        print("testing efi dir")
         install_efi(target, uefi_part['device_path'])
     else:
         for dev in devices:
