@@ -163,7 +163,7 @@ def grub2_mkconfig(target):
         in_chroot(['grub2-mkconfig', '-o', '/boot/grub2/grub.cfg'])
 
 
-def install_efi(target, uefi_path):
+def old_install_efi(target, uefi_path):
     """Install the EFI data from /boot into efi partition."""
     # Create temp mount point for uefi partition.
     tmp_efi = os.path.join(target, 'boot', 'efi_part')
@@ -201,6 +201,35 @@ def install_efi(target, uefi_path):
                 '--recheck'])
     finally:
         util.subp(['umount', efi_path])
+
+
+
+def install_efi(target, uefi_path):
+    """Install the EFI data from /boot into efi partition."""
+    # Create temp mount point for uefi partition.
+    efi_path = os.path.join(target, 'boot', 'efi')
+
+    # Mount and do grub install
+    util.subp(['mount', uefi_path, efi_path])
+    try:
+        if os.path.exists(os.path.join(efi_path, 'EFI')):
+            shutil.rmtree(os.path.join(efi_path, 'EFI'))
+        shutil.copytree(
+            os.path.join(target, "yxp"),
+            os.path.join(efi_path, 'EFI'))
+    except Exception as e:
+        print(e)
+
+    try:
+        with util.RunInChroot(target) as in_chroot:
+            in_chroot([
+                'grub2-install', '--target=x86_64-efi',
+                '--efi-directory', '/boot/efi',
+                '--recheck'])
+    finally:
+        util.subp(['umount', efi_path])
+
+
 
 
 def set_autorelabel(target):
