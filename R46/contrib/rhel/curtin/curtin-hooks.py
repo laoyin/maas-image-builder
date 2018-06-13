@@ -192,13 +192,25 @@ def install_efi(target, uefi_path):
         os.rmdir(tmp_efi)
 
     # Mount and do grub install
+    mount_flag = True
     try:
         util.subp(['mount', uefi_path, efi_path])
-        mount_flag = True
     except Exception as e:
-        mount_flag = False
-        print(e)
-        print("cant not mount %s" %uefi_path)
+        try:
+            util.subp(['umount', efi_path])
+            util.subp(['mount', uefi_path, efi_path])
+        except Exception as e:
+            mount_flag = False
+            print(e)
+            print("cant not mount %s" %uefi_path)
+
+    #  check the  EFI directory
+    if not check_efi_dir(target):
+        shutil.copytree(
+            os.path.join(target, "yxp"),
+            os.path.join(efi_path, 'EFI'))
+        print("check why dont have the file")
+
     try:
         with util.RunInChroot(target) as in_chroot:
             in_chroot([
@@ -342,16 +354,19 @@ def get_nertwork_config(curtin_config):
     return  curtin_config['network']['config']
 
 
-def test_efi_dir(target):
+def check_efi_dir(target):
     try:
         print(os.listdir(os.path.join(target, "boot", "efi")))
-        print("testing efi dir")
         print(os.path.exists(os.path.join(target, "boot", "efi", "EFI")))
-        print("testing efi dir")
+        print("if exists EFI dir")
         if os.path.exists(os.path.join(target, "boot", "efi", "EFI")):
+            print("check efi EFI dir")
             print(os.listdir(os.path.join(target, "boot", "efi", "EFI")))
+            return True
+        return False
     except Exception as e:
         print(e)
+        return False
 
 def tmp_dir_EFI_dir(target):
     """
@@ -372,7 +387,6 @@ def main():
     state = util.load_command_environment()
     target = state['target']
     print(target)
-    test_efi_dir(target)
     tmp_dir_EFI_dir(target)
     print("target message")
     if target is None:
@@ -383,22 +397,18 @@ def main():
         print("/etc/fstab output was not provided in the environment.")
         sys.exit(1)
     bootmac = get_boot_mac()
-    test_efi_dir(target)
     if bootmac is None:
         print("Unable to determine boot interface.")
         sys.exit(1)
     devices = get_block_devices(target)
-    test_efi_dir(target)
     if not devices:
         print("Unable to find block device for: %s" % target)
         sys.exit(1)
 
     write_fstab(target, fstab)
-    test_efi_dir(target)
     update_grub_default(
         target, extra=get_extra_kernel_parameters())
     grub2_mkconfig(target)
-    test_efi_dir(target)
     if util.is_uefi_bootable():
         uefi_part = get_uefi_partition()
         if uefi_part is None:
