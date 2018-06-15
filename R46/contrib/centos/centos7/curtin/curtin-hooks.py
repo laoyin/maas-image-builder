@@ -388,7 +388,12 @@ def tmp_dir_EFI_dir(target):
     else:
         print("no such file or directory")
 
-
+def get_uefi_partition():
+    """Return the UEFI partition."""
+    for _, value in block._lsblock().items():
+        if value['LABEL'] == 'uefi-boot':
+            return value
+    return None
 
 
 def main():
@@ -418,7 +423,11 @@ def main():
         target, extra=get_extra_kernel_parameters())
     grub2_mkconfig(target)
     if util.is_uefi_bootable():
-        grub2_install_efi(target)
+        uefi_part = get_uefi_partition()
+        if uefi_part is None:
+            print('Unable to determine UEFI parition.')
+            sys.exit(1)
+        grub2_install_efi(target, uefi_part['device_path'])
     else:
         for dev in devices:
             grub2_install(target, dev)
