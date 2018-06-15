@@ -4,7 +4,7 @@ install
 firewall --enabled --service=ssh
 # Use CDROM installation media
 cdrom
-repo --name="repo0" --baseurl=http://mirrors.kernel.org/centos/7/os/x86_64 --includepkgs=python-pygments
+repo --name="repo0" --baseurl=http://mirrors.kernel.org/centos/7/os/x86_64 --includepkgs=python-pygments,grub2-efi-modules,efibootmgr
 repo --name="repo1" --baseurl=http://mirrors.kernel.org/centos/7/updates/x86_64 --includepkgs=python-pygments
 repo --name="repo2" --baseurl=http://mirrors.kernel.org/centos/7/extras/x86_64
 repo --name="repo3" --baseurl=http://archives.fedoraproject.org/pub/archive/fedora/linux/releases/20/Everything/x86_64/os/ --includepkgs=python-oauth,python-prettytable,cloud-init
@@ -107,6 +107,8 @@ rm -rf /var/log/anaconda*
 @core
 cloud-init
 python-oauth
+grub2-efi-modules
+efibootmgr
 # Don't install NetworkManager
 -NetworkManager
 
