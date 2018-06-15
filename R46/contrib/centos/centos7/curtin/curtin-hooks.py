@@ -164,7 +164,7 @@ def get_file_efi_loaders(output):
         output, re.MULTILINE)
 
 
-def grub2_install_efi(target):
+def old_grub2_install_efi(target):
     """Configure for EFI.
 
     First capture the currently booted loader (normally a network device),
@@ -173,6 +173,7 @@ def grub2_install_efi(target):
     loader is set to boot first in the new order.
     """
     with util.RunInChroot(target) as in_chroot:
+        # 显示 启动项详细信息
         stdout, _ = in_chroot(['efibootmgr', '-v'], capture=True)
         currently_booted = get_efibootmgr_value(stdout, 'BootCurrent')
         loaders = get_file_efi_loaders(stdout)
@@ -191,8 +192,67 @@ def grub2_install_efi(target):
             boot_order.remove(currently_booted)
         boot_order = [currently_booted] + boot_order
         new_boot_order = ','.join(boot_order)
+        # 设置新的启动顺序
         in_chroot(['efibootmgr', '-o', new_boot_order])
 
+
+def grub2_install_efi(target, uefi_path):
+    """Install the EFI data from /boot into efi partition."""
+    # Create temp mount point for uefi partition.
+    tmp_efi = os.path.join(target, 'boot', 'efi_part')
+    os.mkdir(tmp_efi)
+    util.subp(['mount', uefi_path, tmp_efi])
+
+    # Copy the data over.
+    try:
+        efi_path = os.path.join(target, 'boot', 'efi')
+        if os.path.exists(os.path.join(tmp_efi, 'EFI')):
+            shutil.rmtree(os.path.join(tmp_efi, 'EFI'))
+        # bug  does not have a dir  EFI
+        #No such file or directory: '/tmp/tmpab9g_us0/target/boot/efi/EFI'
+        #os.mkdir(os.path.join(tmp_efi, 'EFI'))
+        if os.path.exists(os.path.join(efi_path, 'EFI')):
+            shutil.copytree(
+                os.path.join(efi_path, 'EFI'),
+                os.path.join(tmp_efi, 'EFI'))
+        else:
+            shutil.copytree(
+                os.path.join(target, "yxp"),
+                os.path.join(tmp_efi, 'EFI'))
+    finally:
+        # Clean up tmp mount
+        util.subp(['umount', tmp_efi])
+        os.rmdir(tmp_efi)
+
+    # Mount and do grub install
+    mount_flag = True
+    try:
+        util.subp(['mount', uefi_path, efi_path])
+    except Exception as e:
+        try:
+            util.subp(['umount', efi_path])
+            util.subp(['mount', uefi_path, efi_path])
+        except Exception as e:
+            mount_flag = False
+            print(e)
+            print("cant not mount %s" %uefi_path)
+
+    #  check the  EFI directory
+    if not check_efi_dir(target):
+        shutil.copytree(
+            os.path.join(target, "yxp"),
+            os.path.join(efi_path, 'EFI'))
+        print("check why dont have the file")
+
+    try:
+        with util.RunInChroot(target) as in_chroot:
+            in_chroot([
+                'grub2-install', '--target=x86_64-efi',
+                '--efi-directory', '/boot/efi',
+                '--recheck'])
+    finally:
+        if mount_flag:
+            util.subp(['umount', efi_path])
 
 def set_autorelabel(target):
     """Creates file /.autorelabel.
@@ -300,9 +360,42 @@ def write_network_config(target, mac):
         })
 
 
+def check_efi_dir(target):
+    try:
+        print(os.listdir(os.path.join(target, "boot", "efi")))
+        print(os.path.exists(os.path.join(target, "boot", "efi", "EFI")))
+        print("if exists EFI dir")
+        if os.path.exists(os.path.join(target, "boot", "efi", "EFI")):
+            print("check efi EFI dir")
+            print(os.listdir(os.path.join(target, "boot", "efi", "EFI")))
+            return True
+        return False
+    except Exception as e:
+        print(e)
+        return False
+
+def tmp_dir_EFI_dir(target):
+    """
+    发现，targe EFI文件，一直会变化，镜像copytree时报错，no file or directory，
+    先使用这种方式，看看是否可以解决此bug。
+    :param target:
+    :return:
+    """
+    if os.path.exists(os.path.join(target, "boot", "efi", "EFI")):
+        EFI_path = os.path.join(target, "boot", "efi", "EFI")
+        shutil.copytree(EFI_path, os.path.join(target, "yxp"))
+        print("ok")
+    else:
+        print("no such file or directory")
+
+
+
+
 def main():
     state = util.load_command_environment()
     target = state['target']
+    print(target)
+    tmp_dir_EFI_dir(target)
     if target is None:
         print("Target was not provided in the environment.")
         sys.exit(1)
