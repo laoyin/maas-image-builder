@@ -125,7 +125,8 @@ class CentOSBuilder(VirtInstallBuilder):
         elif self.edition == '7':
             self.install_location = (
                 # "http://mirror.centos.org/centos/7/os/x86_64")
-                "http://mirrors.njupt.edu.cn/centos/7/isos/x86_64/CentOS-7-x86_64-Everything-1804.iso")
+                #"http://mirrors.njupt.edu.cn/centos/7/isos/x86_64/CentOS-7-x86_64-Everything-1804.iso")
+                "http://mirrors.cqu.edu.cn/CentOS/7/isos/x86_64/CentOS-7-x86_64-Everything-1708.iso")
             base_kickstart_file = self.get_contrib_path(
                 "centos7/centos7-amd64.ks")
             extra_arguments_template = (
